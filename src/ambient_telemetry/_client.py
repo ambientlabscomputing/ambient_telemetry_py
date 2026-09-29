@@ -12,6 +12,7 @@ import sentry_sdk
 from . import _context
 from ._types import Data, Level, TelemetryConfig
 from ._umami import UmamiTransport
+from ._urls import scrub_breadcrumb, scrub_event
 
 log = logging.getLogger("ambient_telemetry")
 
@@ -43,6 +44,18 @@ def normalize_error(err: object) -> BaseException:
     return Exception(f"Non-Error raised: {err!r}")
 
 
+def _chain(
+    ours: Callable[[Any, Any], Any], theirs: Callable[[Any, Any], Any] | None
+) -> Callable[[Any, Any], Any]:
+    """Run our URL scrubber first, then the app's own Sentry hook (if any)."""
+
+    def hook(item: Any, hint: Any) -> Any:
+        item = ours(item, hint)
+        return theirs(item, hint) if theirs and item is not None else item
+
+    return hook
+
+
 class Telemetry:
     """The API contract shared with the TypeScript library:
     init, track, page, capture_error, identify, flush. Nothing here raises."""
@@ -61,6 +74,16 @@ class Telemetry:
         if config.enabled:
             try:
                 if config.glitchtip:
+                    options = dict(config.sentry_options)
+                    if config.sanitize_url:
+                        options["before_send"] = _chain(
+                            lambda e, h: scrub_event(e, config.sanitize_url),
+                            options.get("before_send"),
+                        )
+                        options["before_breadcrumb"] = _chain(
+                            lambda c, h: scrub_breadcrumb(c, config.sanitize_url),
+                            options.get("before_breadcrumb"),
+                        )
                     sentry_sdk.init(
                         dsn=config.glitchtip.dsn,
                         environment=config.environment,
@@ -68,11 +91,13 @@ class Telemetry:
                         sample_rate=config.glitchtip.sample_rate,
                         traces_sample_rate=config.glitchtip.traces_sample_rate,
                         send_default_pii=False,
-                        **config.sentry_options,
+                        **options,
                     )
                     sentry_sdk.set_tag("app", config.app)
                 if config.umami:
-                    self._umami = UmamiTransport(config.umami)
+                    self._umami = UmamiTransport(
+                        config.umami, sanitize_url=config.sanitize_url
+                    )
             except Exception as exc:  # noqa: BLE001
                 log.error("telemetry init failed: %s", exc)
         with self._lock:

@@ -11,7 +11,7 @@ track() -> Umami          capture_error() -> sentry-sdk -> GlitchTip
 Internal, GitHub-only, not on PyPI:
 
 ```bash
-uv add "ambient-telemetry @ git+https://github.com/ambientlabscomputing/ambient_telemetry_py@v0.1.2"
+uv add "ambient-telemetry @ git+https://github.com/ambientlabscomputing/ambient_telemetry_py@v0.2.0"
 ```
 
 ## Usage
@@ -48,6 +48,7 @@ at.capture_error(exc, tags={"area": "billing"})
 | `umami` | `UmamiConfig(host, website_id, hostname)`. `hostname` is the API's real public hostname; Umami needs one to attribute events. Omit to disable events. |
 | `glitchtip` | `GlitchTipConfig(dsn, sample_rate, traces_sample_rate)`. The DSN key has **no dashes**. Omit to disable errors. |
 | `enabled` | Kill switch; `False` makes every call a no-op. Keep dev/test silent. |
+| `sanitize_url` | Scrubs URLs, see below. |
 | `before_track`, `before_send` | Inspect or drop events / errors (return `None` to drop). |
 | `sentry_options` | Extra kwargs for `sentry_sdk.init` (integrations etc). |
 
@@ -79,11 +80,23 @@ Add `X-Ambient-Session` to your CORS `allow_headers`, or browsers will block eve
 
 `init`, `track`, `page`, `capture_error`, `identify`, `flush`. Nothing raises; calls before `init` are buffered (max 50) and replayed; `enabled=False` is a full no-op; keys like `password` and `token` are redacted; Umami requests send a browser-shaped `User-Agent` (Umami silently drops bot-looking ones with HTTP 200).
 
-## Gotchas and known gaps
+## Keeping URLs safe (`sanitize_url`)
+
+Umami events carry a URL, and Sentry attaches request URLs to errors. If yours hold ids, names or one-time tokens, pass `sanitize_url` to `TelemetryConfig`. It is applied to the Umami `url` (`track(url=...)`, `page`, `identify`) and to the Sentry event's `request.url`, `Referer` header, stored query string, and breadcrumb `url` / `from` / `to` (plus `http.query` and `http.fragment`, which sentry-sdk stores separately). If it raises, the URL becomes `/`. Your own `sentry_options` `before_send` / `before_breadcrumb` still run, after the scrubber.
+
+```python
+import re
+
+at.TelemetryConfig(
+    ...,
+    sanitize_url=lambda u: re.sub(r"/projects/[^/]+", "/projects/:id", u.split("?")[0]),
+)
+```
+
+## Gotchas
 
 - Umami answers `{"beep":"boop"}` with HTTP 200 and drops anything that looks like a bot. The default User-Agent is browser-shaped for that reason: do not override it.
 - Umami events sent from a server have no visitor IP or browser of their own; they join the browser's session through the shared user id.
-- **No `sanitize_url` yet** (the TypeScript library has `sanitizeUrl`). Pass already-clean paths to `track(url=...)`, and note that Sentry's request data on captured errors can include query strings; use `before_send` or `sentry_options` if your URLs carry secrets.
 
 ## Releasing
 

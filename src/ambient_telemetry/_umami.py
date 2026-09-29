@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 
 from ._types import UmamiConfig
+from ._urls import SanitizeUrl, safe_url
 
 log = logging.getLogger("ambient_telemetry")
 
@@ -31,8 +32,10 @@ class UmamiTransport:
         *,
         timeout: float = 5.0,
         base_delay: float = 0.5,
+        sanitize_url: SanitizeUrl | None = None,
     ) -> None:
         self._cfg = cfg
+        self._sanitize_url = sanitize_url
         self._client = client or httpx.Client(timeout=timeout)
         self._base_delay = base_delay
         self._cache_token: str | None = None
@@ -75,6 +78,7 @@ class UmamiTransport:
             "hostname": self._cfg.hostname,
             **{k: v for k, v in fields.items() if v is not None},
         }
+        payload["url"] = safe_url(self._sanitize_url, str(payload.get("url", "/")))
         body = json.dumps({"type": kind, "payload": payload}, default=str).encode()
         try:
             self._queue.put_nowait((body, 0))

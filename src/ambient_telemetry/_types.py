@@ -47,6 +47,11 @@ class TelemetryConfig:
     before_send: (
         Callable[[BaseException, Data], tuple[BaseException, Data] | None] | None
     ) = None
+    #: Rewrites every URL before it leaves the app: the `url` sent to Umami, and the URLs
+    #: Sentry attaches to errors (request url, Referer, query string, breadcrumbs). Use it to
+    #: drop query strings that carry one-time secrets and to collapse ids in paths.
+    #: Receives a path or absolute URL. If it raises, the URL becomes "/".
+    sanitize_url: Callable[[str], str] | None = None
     debug: bool = False
     #: Extra sentry_sdk.init kwargs (integrations, etc).
     sentry_options: dict[str, Any] = field(default_factory=dict)
