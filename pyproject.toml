@@ -1,0 +1,33 @@
+[project]
+name = "ambient-telemetry"
+version = "0.1.0"
+description = "Ambient Labs telemetry for Python: Umami events + GlitchTip (Sentry) errors"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "UNLICENSED" }
+dependencies = [
+    "httpx>=0.27.0",
+    "sentry-sdk>=2.0.0",
+]
+
+[project.optional-dependencies]
+fastapi = ["starlette>=0.37.0"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "ruff>=0.8.0",
+    "mypy>=1.14.0",
+    "starlette>=0.37.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[build-system]
+requires = ["uv_build>=0.10.0,<0.11.0"]
+build-backend = "uv_build"
