@@ -15,7 +15,12 @@ class UmamiConfig:
     #: Umami has no server concept; events need a hostname to attribute them to.
     #: Use the API's own public hostname (e.g. "api.example.com").
     hostname: str
-    user_agent: str = "ambient-telemetry-python"
+    # Umami silently drops requests whose User-Agent doesn't look like a browser
+    # ({"beep":"boop"}, HTTP 200), so keep the browser-shaped prefix.
+    user_agent: str = (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36 "
+        "ambient-telemetry-python/0.1"
+    )
 
 
 @dataclass(frozen=True)

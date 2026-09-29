@@ -11,7 +11,7 @@ track() -> Umami          capture_error() -> sentry-sdk -> GlitchTip
 Internal, GitHub-only, not on PyPI:
 
 ```bash
-uv add "ambient-telemetry @ git+https://github.com/ambientlabscomputing/ambient_telemetry_py@v0.1.0"
+uv add "ambient-telemetry @ git+https://github.com/ambientlabscomputing/ambient_telemetry_py@v0.1.1"
 ```
 
 ## Usage
@@ -47,7 +47,7 @@ at.capture_error(exc, tags={"area": "billing"})
 
 ## Contract (same as the TS library)
 
-`init`, `track`, `page`, `capture_error`, `identify`, `flush`. Nothing raises; calls before `init` are buffered (max 50) and replayed; `enabled=False` is a full no-op; keys like `password` and `token` are redacted; Umami requests send an explicit `User-Agent`.
+`init`, `track`, `page`, `capture_error`, `identify`, `flush`. Nothing raises; calls before `init` are buffered (max 50) and replayed; `enabled=False` is a full no-op; keys like `password` and `token` are redacted; Umami requests send a browser-shaped `User-Agent` (Umami silently drops bot-looking ones with HTTP 200).
 
 ## Development
 

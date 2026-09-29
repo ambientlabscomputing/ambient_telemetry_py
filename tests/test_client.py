@@ -61,7 +61,8 @@ def test_track_payload_carries_identity() -> None:
         "org_id": "o-1",
         "session_id": "sess-1234",
     }
-    assert rec.requests[0].headers["user-agent"] == "ambient-telemetry-python"
+    ua = rec.requests[0].headers["user-agent"]
+    assert ua.startswith("Mozilla/5.0") and ua.endswith("ambient-telemetry-python/0.1")
     assert rec.requests[0].url == "https://u.test/api/send"
 
 
