@@ -56,6 +56,16 @@ def _chain(
     return hook
 
 
+def _tag_client_ip(event: Any, hint: Any) -> Any:
+    ip = _context.current().ip
+    tags = event.get("tags")
+    if ip and tags is None:
+        event["tags"] = {"client_ip": ip}
+    elif ip and isinstance(tags, dict):
+        tags.setdefault("client_ip", ip)
+    return event
+
+
 class Telemetry:
     """The API contract shared with the TypeScript library:
     init, track, page, capture_error, identify, flush. Nothing here raises."""
@@ -83,6 +93,12 @@ class Telemetry:
                         options["before_breadcrumb"] = _chain(
                             lambda c, h: scrub_breadcrumb(c, config.sanitize_url),
                             options.get("before_breadcrumb"),
+                        )
+                    if config.capture_ip:
+                        # One hook tags every error: capture_error() and the ones Sentry's
+                        # integrations capture on their own (unhandled 5xx).
+                        options["before_send"] = _chain(
+                            _tag_client_ip, options.get("before_send")
                         )
                     sentry_sdk.init(
                         dsn=config.glitchtip.dsn,
@@ -121,6 +137,9 @@ class Telemetry:
             if ev is None or self._umami is None:
                 return
             merged: Data = {**(ev[1] or {})}
+            ip = self._client_ip(ctx)
+            if ip:
+                merged.setdefault("client_ip", ip)
             if ctx.org_id:
                 merged.setdefault("org_id", ctx.org_id)
             if ctx.session_id:
@@ -130,6 +149,7 @@ class Telemetry:
                 name=ev[0],
                 data=merged or None,
                 distinct_id=ctx.user_id,
+                ip=ip,
             )
 
         self._call(run)
@@ -137,8 +157,12 @@ class Telemetry:
     def page(self, url: str, title: str | None = None) -> None:
         def run() -> None:
             if self._umami:
+                ctx = _context.current()
                 self._umami.event(
-                    url=url, title=title, distinct_id=_context.current().user_id
+                    url=url,
+                    title=title,
+                    distinct_id=ctx.user_id,
+                    ip=self._client_ip(ctx),
                 )
 
         self._call(run)
@@ -192,7 +216,11 @@ class Telemetry:
             _context.bind(user_id=user_id)
             sentry_sdk.set_user({"id": user_id})
             if self._umami:
-                self._umami.identify(user_id, scrub(traits) if traits else None)
+                self._umami.identify(
+                    user_id,
+                    scrub(traits) if traits else None,
+                    ip=self._client_ip(_context.current()),
+                )
 
         self._call(run)
 
@@ -207,6 +235,9 @@ class Telemetry:
         return ok
 
     # -- internals ---------------------------------------------------------
+    def _client_ip(self, ctx: _context.Context) -> str | None:
+        return ctx.ip if self._cfg and self._cfg.capture_ip else None
+
     def _call(self, fn: Callable[[], None]) -> None:
         with self._lock:
             if self._cfg is None:

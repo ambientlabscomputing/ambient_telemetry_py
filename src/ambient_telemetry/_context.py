@@ -5,12 +5,16 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 
+from ._ip import public_ip
+
 
 @dataclass(frozen=True)
 class Context:
     user_id: str | None = None
     org_id: str | None = None
     session_id: str | None = None
+    #: The end user's public IP (see ``TelemetryConfig.capture_ip``).
+    ip: str | None = None
 
 
 _EMPTY = Context()  # frozen dataclass: safe to share as the default
@@ -26,11 +30,13 @@ def bind(
     user_id: str | None = None,
     org_id: str | None = None,
     session_id: str | None = None,
+    ip: str | None = None,
 ) -> None:
     """Attach identity to every event/error emitted in the current context (request/task).
 
     Only the given fields change. Use the id your product already uses internally;
-    never an email or name.
+    never an email or name. ``ip`` is the end user's address; it is only recorded when
+    ``TelemetryConfig.capture_ip`` is on, and non-public addresses are ignored.
     """
     cur = _ctx.get()
     _ctx.set(
@@ -39,6 +45,7 @@ def bind(
             user_id=user_id if user_id is not None else cur.user_id,
             org_id=org_id if org_id is not None else cur.org_id,
             session_id=session_id if session_id is not None else cur.session_id,
+            ip=public_ip(ip) or cur.ip,
         )
     )
 
@@ -49,10 +56,11 @@ def bound(
     user_id: str | None = None,
     org_id: str | None = None,
     session_id: str | None = None,
+    ip: str | None = None,
 ) -> Iterator[None]:
     token = _ctx.set(_ctx.get())
     try:
-        bind(user_id=user_id, org_id=org_id, session_id=session_id)
+        bind(user_id=user_id, org_id=org_id, session_id=session_id, ip=ip)
         yield
     finally:
         _ctx.reset(token)

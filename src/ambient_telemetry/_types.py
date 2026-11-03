@@ -52,6 +52,13 @@ class TelemetryConfig:
     #: drop query strings that carry one-time secrets and to collapse ids in paths.
     #: Receives a path or absolute URL. If it raises, the URL becomes "/".
     sanitize_url: Callable[[str], str] | None = None
+    #: Record the end user's public IP, so events and errors can be filtered by it. Off by
+    #: default: an IP is personal data. Bind it per request (``bind(ip=...)`` or the Starlette
+    #: middleware). It goes to Umami as the event's IP (so geo/session attribution reflect the
+    #: user, not this server) and as a ``client_ip`` event property, and to GlitchTip as a
+    #: ``client_ip`` tag (GlitchTip overwrites ``user.ip_address`` with the sender's own IP,
+    #: so a tag is the only way to keep the user's).
+    capture_ip: bool = False
     debug: bool = False
     #: Extra sentry_sdk.init kwargs (integrations, etc).
     sentry_options: dict[str, Any] = field(default_factory=dict)
