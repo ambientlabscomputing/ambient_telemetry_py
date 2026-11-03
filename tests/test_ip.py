@@ -20,6 +20,15 @@ from ambient_telemetry.starlette import TelemetryMiddleware
         ("8.8.8.8:51234", "8.8.8.8"),
         ("2001:4860:4860::8888", "2001:4860:4860::8888"),
         ("[2001:4860:4860::8888]:443", "2001:4860:4860::8888"),
+        (
+            "2400:cb00:0:1:1:1:1:1",
+            "2400:cb00:0:1:1:1:1:1",
+        ),  # one zero group: not compressed
+        (
+            "2400:cb00:0:0:1:0:0:1",
+            "2400:cb00::1:0:0:1",
+        ),  # equal runs: the first is compressed
+        ("2400:cb00:0:1:0:0:0:1", "2400:cb00:0:1::1"),  # the longest run wins
         ("::ffff:8.8.8.8", "8.8.8.8"),  # IPv4-mapped IPv6 is the v4 address
         # Not a public address: never record a proxy's or a LAN's address as the user's.
         ("10.0.0.5", None),
@@ -31,6 +40,14 @@ from ambient_telemetry.starlette import TelemetryMiddleware
         ("169.254.1.1", None),
         ("100.64.0.1", None),  # carrier-grade NAT
         ("::ffff:10.0.0.5", None),
+        ("ff02::1", None),  # multicast
+        ("224.0.0.1", None),
+        ("64:ff9b::808:808", None),  # NAT64
+        ("1:2:3:4:5:6:7:8", None),  # not global unicast
+        ("2002:808:808::1", None),  # 6to4
+        ("2001::1", None),  # Teredo / IETF protocol assignments
+        ("3fff::1", None),  # documentation
+        ("01.2.3.4", None),  # leading zeros are ambiguous (octal)
         # Junk.
         ("", None),
         ("unknown", None),
