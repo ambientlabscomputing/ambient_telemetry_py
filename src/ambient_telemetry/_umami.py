@@ -53,16 +53,30 @@ class UmamiTransport:
         data: dict[str, Any] | None = None,
         title: str | None = None,
         distinct_id: str | None = None,
+        ip: str | None = None,
     ) -> None:
         self._enqueue(
             "event",
-            {"url": url, "name": name, "data": data, "title": title, "id": distinct_id},
+            {
+                "url": url,
+                "name": name,
+                "data": data,
+                "title": title,
+                "id": distinct_id,
+                "ip": ip,
+            },
         )
 
     def identify(
-        self, distinct_id: str, data: dict[str, Any] | None = None, url: str = "/"
+        self,
+        distinct_id: str,
+        data: dict[str, Any] | None = None,
+        url: str = "/",
+        ip: str | None = None,
     ) -> None:
-        self._enqueue("identify", {"url": url, "id": distinct_id, "data": data})
+        self._enqueue(
+            "identify", {"url": url, "id": distinct_id, "data": data, "ip": ip}
+        )
 
     def flush(self, timeout: float = 2.0) -> bool:
         deadline = time.monotonic() + timeout
